@@ -2,15 +2,17 @@
 #include <CurieIMU.h>
 #include <Servo.h>
 
+#define TICKRATE 400
 #define Cereal Serial
 
 //Gyro globals
-double dt, tlast, tnow;
 double anglex = 0, angley = 0, anglez = 0;
+double tlast;
+const double dt = 1000000 / TICKRATE;
 
+//Servo globals
 Servo wingservo[4];
 int servopos[4];
-//Servo globals
 const char servopin[4] = {3,5,6,9};
 int stdservopos[4] = {62, 80, 78, 90};
 
@@ -25,7 +27,7 @@ void setup() {
   //Gyro init
   Cereal.begin(115200);
   CurieIMU.begin();
-  CurieIMU.setGyroRate(50);
+  CurieIMU.setGyroRate(TICKRATE);
   CurieIMU.setGyroRange(500);
   delay(10);
   CurieIMU.autoCalibrateGyroOffset();
@@ -36,9 +38,6 @@ void setup() {
     wingservo[i].attach(servopin[i]);
     wingservo[i].write(servopos[i]);
   }
-
-  //Time init
-  dt = 0;
   
   //Turn LED on to show init finished
   digitalWrite(LED_BUILTIN, HIGH);
@@ -53,21 +52,19 @@ int prison(int input, int wall){
 void loop() {
   //Gyro
   static float gx, gy, gz;
-  anglex = anglex + gx * dt;
-  angley = angley + gy * dt;
-  anglez = anglez + gz * dt;
-  CurieIMU.readGyroScaled(gx, gy, gz);
-  tlast = tnow;
-  tnow = micros();
-  dt = (tnow - tlast) / 1000000;
+  if(micros() - tlast >= dt) {
+    tlast = tlast + dt;
+    CurieIMU.readGyroScaled(gx, gy, gz);
+    anglex = anglex + gx / TICKRATE;
+    angley = angley + gy / TICKRATE;
+    anglez = anglez + gz / TICKRATE;
+  }
   ///*
   Cereal.print(anglex);
   Cereal.print("\t");
   Cereal.print(angley);
   Cereal.print("\t");
-  Cereal.print(anglez);
-  Cereal.print("\t");
-  Cereal.println(dt);
+  Cereal.println(anglez);
   //*/
   
   /*
